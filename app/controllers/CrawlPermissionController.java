@@ -984,6 +984,9 @@ public class CrawlPermissionController extends AbstractController {
                         String[] placeHolderArray = Utils.INSTANCE.getMailArray(mailTemplate.placeHolders);
                         String licenseUrl = routes.LicenseController.form(crawlPermission.token).absoluteURL(request()).toString();
                         licenseUrl = injectServerName(licenseUrl);
+                        Logger.debug("+++++++++++++send permission.target.title: " + licenseUrl);
+                        Logger.debug("+++++++++++++send placeHolderArray[1]: " + placeHolderArray[1]);
+                        Logger.debug("+++++++++++++srnd placeHolderArray[1]: " + placeHolderArray[1]);
                         messageBody = CrawlPermission.
                             replaceTwoStringsInText(
                                     messageBody
