@@ -438,7 +438,12 @@ public class CrawlPermission extends ActModel {
     public static String replaceTwoStringsInText(String text, String placeHolderUrl, String placeHolderLink, 
     		String valueUrl, String valueLink) {
     	String res = text;
-//    	Logger.debug("replaceTwoStringsInText valueUrl: " + valueUrl);
+		Logger.debug("replaceTwoStringsInText valueUrl: " + valueUrl);
+		Logger.debug("++++++++ replaceTwoStringsInText placeholder string for unique license URL ||LINK||, aka placeHolderLink: " + placeHolderLink);
+
+		Logger.debug("The value that overwrites associated placeholder ||URL||: " + valueUrl);
+		Logger.debug("The value that overwrites associated placeholder ||LINK||: " + valueLink);
+
     	List<String> placeHolders = new ArrayList<String>();
     	placeHolders.add(placeHolderUrl);
     	placeHolders.add(placeHolderLink);
@@ -457,6 +462,7 @@ public class CrawlPermission extends ActModel {
      * @return updated text
      */
     public static String replacePlaceholdersInText(String text, List<String> placeHolders, List<String> values) {
+		Logger.debug("+++++ replacePlaceholdersInText, placeHolders and values count: " + placeHolders.size() +", " + values.size() );
     	String res = text;
     	if (placeHolders != null && placeHolders.size() > 0 
     			&& values != null && values.size() > 0
@@ -482,27 +488,27 @@ public class CrawlPermission extends ActModel {
 	 * @param status The status of crawl permission request (e.g. QUEUED, PENDING...)
 	 * @param organisation The id of organisation the target belongs to (e.g. 1 - (BL), ...)
      */
-    public static Page<CrawlPermission> page(int page, int pageSize, String sortBy, String order, String filter, 
-    		String status, String organisation) {
-    	// Set up query:
-    	ExpressionList<CrawlPermission> q = find.where().icontains("name", filter);
-    	// Add optional status filter:
-    	if( ! "-1".equals(status)) {
-    		q = q .eq("status", status);
-    	}
-		// Add optional organisation filter:
-		if( ! "-1".equals(organisation)) {
-			q = q .eq("user.organisation.id", Integer.valueOf(organisation));
-		}
-		// Strip out NULLs when sorting by these dates:
-    	if( "grantedAt".equals(sortBy) ||"requestedAt".equals(sortBy) ) {
-    		q = q.isNotNull(sortBy);
-    	}
-    	// Query and return paged list:
-    	return q.orderBy(sortBy + " " + order)
-        		.findPagingList(pageSize)
-        		.setFetchAhead(false)
-        		.getPage(page);
+    public static Page<CrawlPermission> page(int page, int pageSize, String sortBy, String order, String filter,
+                                             String status, String organisation) {
+        // Set up query:
+        ExpressionList<CrawlPermission> q = find.where().icontains("name", filter);
+        // Add optional status filter:
+        if (!"-1".equals(status)) {
+            q = q.eq("status", status);
+        }
+        // Add optional organisation filter:
+        if (!"-1".equals(organisation)) {
+            q = q.eq("user.organisation.id", Integer.valueOf(organisation));
+        }
+        // Strip out NULLs when sorting by these dates:
+        if ("grantedAt".equals(sortBy) || "requestedAt".equals(sortBy)) {
+            q = q.isNotNull(sortBy);
+        }
+        // Query and return paged list:
+        return q.orderBy(sortBy + " " + order)
+                .findPagingList(pageSize)
+                .setFetchAhead(false)
+                .getPage(page);
     }
 
     public static Page<CrawlPermission> targetPager(int page, int pageSize, String sortBy, String order, Long targetId) {

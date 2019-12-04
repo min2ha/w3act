@@ -80,6 +80,8 @@ public class CrawlPermissionController extends AbstractController {
      * */
     public static Result list(int pageNo, String sortBy, String order, String filter, String status, String organisation, String sel) {
         Logger.debug("CrawlPermissions.list() " + "\npageNo - " + pageNo + "\nsortby - " + sortBy + "\norder - " + order + "\nfilter - " + filter + "\nstatus - " + status + "\norganisation - " + organisation +  "\nsel - " + sel);
+        Logger.debug("--------======------- where ORG ID ??? --- Organisation ID = " + organisation );
+
         Page<CrawlPermission> pages = CrawlPermission.page(pageNo, 20, sortBy, order, filter, status, organisation);
 
         CrawlPermissionStatus[] crawlPermissionStatuses = Const.CrawlPermissionStatus.values();
@@ -100,7 +102,6 @@ public class CrawlPermissionController extends AbstractController {
                     crawlPermissionStatuses, templates)
             );
     }
-    
     
     public static Result newForm(Long targetId) {
         User user = User.findByEmail(request().username());
@@ -733,11 +734,11 @@ public class CrawlPermissionController extends AbstractController {
     public static void rejectSelectedCrawlPermissions(List<CrawlPermission> permissionList) {
         for (CrawlPermission permission : permissionList) {
             permission.status = Const.CrawlPermissionStatus.EMAIL_REJECTED.name();
-            Logger.debug("new permission staus: " + permission.status);
+            Logger.debug("new permission status: " + permission.status);
             Ebean.update(permission);
             CommunicationLog log = CommunicationLog.logHistory(Const.PERMISSION + " " + permission.status, permission, permission.user, Const.UPDATE);
             Ebean.save(log);
-            Logger.debug("updated permission name: " + permission.name + ", staus: " + permission.status);
+            Logger.debug("updated permission name: " + permission.name + ", status: " + permission.status);
             updateAllByTarget(permission.id, permission.target.id, permission.status);
 //        	        TargetController.updateQaStatus(permission.target.title, permission.status);
         }
@@ -798,6 +799,7 @@ public class CrawlPermissionController extends AbstractController {
      * @return edited link
      */
     public static String injectServerName(String licenseUrl) {
+        Logger.debug("++++++ injectServerName, licenseUrl: " + licenseUrl!=null?licenseUrl:"NULL");
         String res = "";
         if (licenseUrl != null && licenseUrl.length() > 0 && licenseUrl.contains(Const.HTTP_PREFIX)) {
             String serverName = EmailHelper.getServerNameFromPropertyFile();
@@ -809,6 +811,7 @@ public class CrawlPermissionController extends AbstractController {
             int endPos = licenseUrl.substring(startPos).indexOf(Const.SLASH_DELIMITER) + startPos;
             if (StringUtils.isNotEmpty(serverName)) {
                 res = serverName + licenseUrl.substring(endPos);
+                Logger.debug("++++++ injectServerName final res: " + res);
             }
         }
         return res;
@@ -827,8 +830,9 @@ public class CrawlPermissionController extends AbstractController {
 
         boolean res = true;
         
-        Logger.debug("template: " + template);
+        Logger.debug("setPendingSelectedCrawlPermissions template: " + template);
         for (CrawlPermission permission : permissionList) {
+            Logger.debug("+++++++++++++ setPendingSelectedCrawlPermissions");
             Logger.debug("mail to contact person: " + permission.contactPerson);
             Logger.debug("mail template: " + template);
             ContactPerson contactPerson = permission.contactPerson;
@@ -853,6 +857,10 @@ public class CrawlPermissionController extends AbstractController {
 
                 licenseUrl = injectServerName(licenseUrl);
                 Logger.debug("setPendingSelectedCrawlPermissions new: " + licenseUrl);
+
+                Logger.debug("+++++++++++++setPendingSelectedCrawlPermissions permission.target.title: " + permission.target.title);
+                Logger.debug("+++++++++++++setPendingSelectedCrawlPermissions placeHolderArray[1]: " + placeHolderArray[1]);
+                Logger.debug("+++++++++++++setPendingSelectedCrawlPermissions placeHolderArray[1]: " + placeHolderArray[1]);
                 messageBody = CrawlPermission.
                     replaceTwoStringsInText(
                             messageBody
@@ -865,6 +873,8 @@ public class CrawlPermissionController extends AbstractController {
             }
             Logger.debug("email: " + email + ", " + messageSubject + ", " + messageBody);
             if (StringUtils.isNotBlank(email)) {
+                Logger.debug("---------- email --------- " + email);
+
                 EmailHelper.sendMessage(email, messageSubject, messageBody);
 //                    EmailHelper.sendMessage(toMailAddresses, messageSubject, messageBody);                	
                 permission.status = Const.CrawlPermissionStatus.PENDING.name();
@@ -1152,4 +1162,3 @@ public class CrawlPermissionController extends AbstractController {
     }
 
 }
-
