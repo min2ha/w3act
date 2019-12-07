@@ -2,6 +2,7 @@ package controllers;
 
 import java.util.*;
 
+import jdk.nashorn.internal.objects.Global;
 import models.Collection;
 import models.Subject;
 
@@ -11,14 +12,99 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
+import play.GlobalSettings;
 import play.Logger;
 import play.libs.Json;
 import play.mvc.Controller;
 
 
+
+class TrieNode {
+
+    // R links to node children
+    private TrieNode[] links;
+
+    private final int R = 200; //26
+
+    private boolean isEnd;
+
+    public TrieNode() {
+        links = new TrieNode[R];
+    }
+
+    public boolean containsKey(char ch) {
+        return links[ch -'a'] != null;
+    }
+    public TrieNode get(char ch) {
+        return links[ch -'a'];
+    }
+    public void put(char ch, TrieNode node) {
+        links[ch -'a'] = node;
+    }
+    public void setEnd() {
+        isEnd = true;
+    }
+    public boolean isEnd() {
+        return isEnd;
+    }
+}
+
+class Trie {
+	private TrieNode root;
+
+	public Trie() {
+		root = new TrieNode();
+	}
+
+	// Inserts a word into the trie.
+	public void insert(String word) {
+		TrieNode node = root;
+		for (int i = 0; i < word.length(); i++) {
+			char currentChar = word.charAt(i);
+			if (!node.containsKey(currentChar)) {
+				node.put(currentChar, new TrieNode());
+			}
+			node = node.get(currentChar);
+		}
+		node.setEnd();
+	}
+
+
+	// search a prefix or whole key in trie and
+	// returns the node where search ends
+	private TrieNode searchPrefix(String word) {
+		TrieNode node = root;
+		for (int i = 0; i < word.length(); i++) {
+			char curLetter = word.charAt(i);
+			if (node.containsKey(curLetter)) {
+				node = node.get(curLetter);
+			} else {
+				return null;
+			}
+		}
+		return node;
+	}
+
+	// Returns if the word is in the trie.
+	public boolean search(String word) {
+		TrieNode node = searchPrefix(word);
+		return node != null && node.isEnd();
+	}
+
+
+	// Returns if there is any word in the trie
+	// that starts with the given prefix.
+	public boolean startsWith(String prefix) {
+		TrieNode node = searchPrefix(prefix);
+		return node != null;
+	}
+}
+
+
 class NaryTreeNode {
 	public long key;
 	public String title;
+	public int targetSize;
 	public String url;
 	public boolean select;
 	//public int targetCount;
@@ -26,9 +112,10 @@ class NaryTreeNode {
 
 	public NaryTreeNode() {}
 
-	public NaryTreeNode(long _val, String _name, String _url,  boolean _select, List<NaryTreeNode> _children) {
+	public NaryTreeNode(long _val, String _name, int _tagetSize, String _url, boolean _select, List<NaryTreeNode> _children) {
 		key = _val;
 		title = _name;
+		targetSize = _tagetSize;
 		url = _url;
 		select = _select;
 		children = _children;
@@ -40,6 +127,7 @@ class NaryTreeNode {
 
 	public NaryTreeNode searchNode(NaryTreeNode start_from, NaryTreeNode searchNode){//root (where to start from), element (key or title)
 		//search for Title or key (aka id)
+		//generateSubjectsTree()
 		return null;
 	}
 
@@ -219,7 +307,7 @@ public class AbstractController extends Controller {
     	JsonNode jsonData = Json.toJson(result);
         return jsonData;
     }
-    
+
     protected static List<ObjectNode> getCollectionTreeElements(List<Collection> collections, String filter, boolean parent) {
     	return getCollectionTreeElements(collections, filter, parent, null);
     }
@@ -259,10 +347,20 @@ public class AbstractController extends Controller {
 		return Json.toJson(getSubjectTreeElementsByIdsStack( Subject.getFirstLevelSubjects(), mySubjectIds));//jsonData;
 	}
 
+	/**
+	 *
+	 * @param subjects
+	 * @param mySubjectIds
+	 * @return
+	 *
+	 * TODO: Idea - Target size() in Collections and in Subjects
+	 * TODO: The Tree sub levels - Depth First Search and Breadth First Search - could be calculated later anytime.
+	 */
 	protected static List<NaryTreeNode> getSubjectTreeElementsByIdsStack(List<Subject> subjects, List<Long> mySubjectIds) {
 		getStackOfObjectsLayers().clear();
         for (Subject subject : subjects)
-			getStackOfObjectsLayers().push(new NaryTreeNode(subject.id, subject.name,
+			getStackOfObjectsLayers().push(new NaryTreeNode(subject.id, subject.name + " (" + subject.targets.size() + ")",//Anytime data: " (" + subject.children.size() + ")",
+					subject.targets.size(),
                     String.valueOf(routes.SubjectController.view(subject.id)),
                     mySubjectIds.contains(subject.id)?true:false,
                     subjectHelper(subject.id, mySubjectIds) ));
@@ -270,13 +368,23 @@ public class AbstractController extends Controller {
 		return getStackOfObjectsLayers();
 	}
 
+	/**
+	 *
+	 * @param subject_id
+	 * @param mySubjectIds
+	 * @return
+	 *
+	 * TODO: Idea - Target size() in Collections and in Subjects
+	 * TODO: The Tree sub levels - Depth First Search and Breadth First Search - could be calculated later anytime.
+	 */
     public static List<NaryTreeNode> subjectHelper(long subject_id, List<Long> mySubjectIds){
         List<NaryTreeNode> result = new ArrayList<>();
 
         List<Subject> children = Subject.findChildrenByParentId(subject_id);
         if (children.size() > 0) {
             children.forEach(c->
-                    result.add(new NaryTreeNode(c.id, c.name, //+ " (" + c.targets.size() + ")",
+                    result.add(new NaryTreeNode(c.id, c.name + " (" + c.targets.size() + ")",
+							c.targets.size(),//OK,
                             String.valueOf(routes.SubjectController.view(c.id)),
                             mySubjectIds.contains(c.id)?true:false,
                             subjectHelper(c.id, mySubjectIds)))
@@ -288,12 +396,22 @@ public class AbstractController extends Controller {
         }
     }
 
+	/**
+	 *
+	 * @param collections
+	 * @param myCollectionIds
+	 * @return
+	 *
+	 * TODO: Idea - Target size() in Collections and in Subjects
+	 * TODO: The Tree sub levels - Depth First Search and Breadth First Search - could be calculated later anytime.
+	 */
 	//@Cached(key = "CollectionsTreeDS")
 	protected static List<NaryTreeNode> getCollectionTreeElementsByIdsStack(List<Collection> collections, List<Long> myCollectionIds) {
 		getStackOfCollectionsLayers().clear();
 		collections.forEach(c->
 			getStackOfCollectionsLayers().push(
-				new NaryTreeNode(c.id, c.name,
+				new NaryTreeNode(c.id, c.name + " (" + c.targets.size() + ")",
+						c.targets.size(),//OK
 						String.valueOf(routes.CollectionController.view(c.id)),
 						myCollectionIds.contains(c.id)?true:false,
 						collectionHelper(c.id, myCollectionIds) )));
@@ -302,12 +420,22 @@ public class AbstractController extends Controller {
 		return getStackOfCollectionsLayers();
 	}
 
+	/**
+	 *
+	 * @param collection_id
+	 * @param myCollectionIds
+	 * @return
+	 *
+	 * TODO: Idea - Target size() in Collections and in Subjects
+	 * TODO: The Tree sub levels - Depth First Search and Breadth First Search - could be calculated later anytime.
+	 */
 	public static List<NaryTreeNode> collectionHelper(long collection_id, List<Long> myCollectionIds){
 		List<NaryTreeNode> result = new ArrayList<>();
 		List<Collection> children = Collection.findChildrenByParentId(collection_id);
 		if (children.size() > 0) {
 			children.forEach(c->
-				result.add(new NaryTreeNode(c.id, c.name, //+ " (" + c.targets.size() + ")",
+				result.add(new NaryTreeNode(c.id, c.name + " (" + c.targets.size() + ")",
+						c.targets.size(),//OK
 						String.valueOf(routes.CollectionController.view(c.id)),
 						myCollectionIds.contains(c.id)?true:false,
                         collectionHelper(c.id, myCollectionIds)))

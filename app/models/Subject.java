@@ -2,11 +2,8 @@ package models;
 
 import java.util.List;
 
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+import javax.persistence.*;
+
 import com.avaje.ebean.Page;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -27,6 +24,12 @@ public class Subject extends Taxonomy {
 	
     @OneToMany(mappedBy="parent")
 	public List<Subject> children;
+
+	@JsonIgnore
+	@ManyToMany
+	@JoinTable(name = "subject_target", joinColumns = { @JoinColumn(name = "subject_id", referencedColumnName="id") },
+			inverseJoinColumns = { @JoinColumn(name = "target_id", referencedColumnName="id") })
+	public List<Target> targets;
 	
 	public static Model.Finder<Long,Subject> find = new Model.Finder<Long, Subject>(Long.class, Subject.class);
 

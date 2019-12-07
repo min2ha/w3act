@@ -2502,8 +2502,7 @@ public class Target extends Model {
 	public void setSelector(String selector) {
 		this.selector = selector;
 	}
-	
-	
+
 	public String getUkPostalAddressUrl() {
 		return ukPostalAddressUrl;
 	}
